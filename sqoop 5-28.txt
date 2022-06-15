@@ -1,0 +1,52 @@
+#T+1增量同步
+dt_date=$(date -d "-1 day" +%Y-%m-%d)
+
+#在读学员信息表
+/usr/bin/sqoop import "-Dorg.apache.sqoop.splitter.allow_text_splitter=true" \
+--connect 'jdbc:mysql://106.75.33.59:3306/teach?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true' \
+--username itcast_edu_stu \
+--password itcast_edu_stu \
+--query "select *, ${dt_date} as dt from class_studying_student_count where 1=1 and  (dt between '${dt_date} 00:00:00' and '${dt_date} 23:59:59') and \$CONDITIONS" \
+--hcatalog-database jy_ods \
+--hcatalog-table class_studying_student_count \
+-m 1                      
+
+#班级排课信息表
+ /usr/bin/sqoop import "-Dorg.apache.sqoop.splitter.allow_text_splitter=true" \
+--connect 'jdbc:mysql://106.75.33.59:3306/teach?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true' \
+--username itcast_edu_stu \
+--password itcast_edu_stu \
+--query "select *, ${dt_date} as dt from course_table_upload_detail where 1=1 and  (dt between '${dt_date} 00:00:00' and '${dt_date} 23:59:59')and \$CONDITIONS" \
+--hcatalog-database jy_ods \
+--hcatalog-table course_table_upload_detail \
+-m 1                      
+
+#学生请假申请表
+ /usr/bin/sqoop import "-Dorg.apache.sqoop.splitter.allow_text_splitter=true" \
+--connect 'jdbc:mysql://106.75.33.59:3306/teach?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true' \
+--username itcast_edu_stu \
+--password itcast_edu_stu \
+--query "select *, ${dt_date} as dt from student_leave_apply where 1=1 and  (dt between '${dt_date} 00:00:00' and '${dt_date} 23:59:59') and \$CONDITIONS" \
+--hcatalog-database jy_ods \
+--hcatalog-table student_leave_apply \
+-m 1  
+
+#班级作息时间表
+ /usr/bin/sqoop import "-Dorg.apache.sqoop.splitter.allow_text_splitter=true" \
+--connect 'jdbc:mysql://106.75.33.59:3306/teach?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true' \
+--username itcast_edu_stu \
+--password itcast_edu_stu \
+--query "select *, ${dt_date} as dt from tbh_class_time_table where 1=1 and  (dt between '${dt_date} 00:00:00' and '${dt_date} 23:59:59') and \$CONDITIONS" \
+--hcatalog-database jy_ods \
+--hcatalog-table tbh_class_time_table \
+-m 1  
+
+#学生打卡信息表
+ /usr/bin/sqoop import "-Dorg.apache.sqoop.splitter.allow_text_splitter=true" \
+--connect 'jdbc:mysql://106.75.33.59:3306/teach?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true' \
+--username itcast_edu_stu \
+--password itcast_edu_stu \
+--query "select *, ${dt_date} as dt from tbh_student_signin_record where 1=1 and  (dt between '${dt_date} 00:00:00' and '${dt_date} 23:59:59') and \$CONDITIONS" \
+--hcatalog-database jy_ods \
+--hcatalog-table tbh_student_signin_record \
+-m 1  
