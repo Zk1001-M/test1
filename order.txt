@@ -1,0 +1,123 @@
+
+history 查看命令
+clear 翻页
+-javaagent:F:\IT\ja-netfilter\ja-netfilter.jar
+分桶 是按文件 分区是按目录  不能同时存在
+
+判断一个过程是否经过Shuffle：全局分组、全局排序、全局分区【增大】 
+将多台节点的数据放在一起：分组、排序、分区 
+
+conda activate datasci
+D:\Aitheima\pandas_code
+jupyter notebook
+
+1.启动spark
+/export/server/spark-local/sbin/start-thriftserver.sh \
+--hiveconf hive.server2.thrift.port=10000 \
+--hiveconf hive.server2.thrift.bind.host=node1.itcast.cn \
+--master local[2] \
+--conf spark.sql.shuffle.partitions=2
+
+Mysql中的decimal 更加精准的浮点数类型
+
+Hive 数仓架构：为用户提供SQL方式分析数据，只需要编写SQL即可，自动将SQL转换为MapReduce程序。
+Spark 分布式并行计算引擎
+SparkSQL取代Hive，将SQL转换为RDD操作，快速分析数据
+ 
+ll |grep 搜索内容
+1.pycharm使用pip install 安装包的问题
+pip install -i https://pypi.doubanio.com/simple/ --target=F:\Python3.8.7\Lib\site-packages pandas
+
+2.Hadoop
+zookeeper需要同步时间：ntpdate ntp3.aliyun.com
+              永久关闭防火墙：systemctl disable firewalld 
+
+3.tail -数字 查看末行内容；-f 和 -F 实时查看文件变化内容(追踪文件丢失F可以继续追踪)
+
+4.启动hive 的1版本和2版本
+/export/server/apache-hive-3.1.2-bin/bin/hive --service metastore 
+/export/server/apache-hive-3.1.2-bin/bin/hive --service hiveserver2 
+或者
+nohup /export/server/apache-hive-3.1.2-bin/bin/hive --service metastore &
+nohup /export/server/apache-hive-3.1.2-bin/bin/hive --service hiveserver2 &
+beeline> ! connect jdbc:hive2://node1:10000    #jdbc访问HS2服务
+#-e 执行后面的sql语句
+/export/server/apache-hive-3.1.2-bin/bin/hive  -e 'select * from itheima.student'
+#-f 执行后面的sql文件
+vim hive.sql
+select * from itheima.student limit 2
+/export/server/apache-hive-3.1.2-bin/bin/hive  -f hive.sql
+#关闭hadoop虚拟机
+shutdown -h now 
+#删库加内容
+# 删文件的hadoop fs -rm -r /user/root/emp_add
+DROP DATABASE IF EXISTS 库名 CASCADE；
+
+
+jobhistoryserver :19888端口
+-- 设置hive动态分区等相关的参数
+SET hive.exec.dynamic.partition=true;
+SET hive.exec.dynamic.partition.mode=nonstrict;
+set hive.exec.max.dynamic.partitions.pernode=10000;
+set hive.exec.max.dynamic.partitions=100000;
+set hive.exec.max.created.files=150000;
+--hive压缩
+set hive.exec.compress.intermediate=true;
+set hive.exec.compress.output=true;
+--写入时压缩生效
+set hive.exec.orc.compression.strategy=COMPRESSION;
+
+# step2、安装pyspark类库
+pip install pyspark==3.1.2 -i https://pypi.tuna.tsinghua.edu.cn/simple
+## 第二、启动MRHistoryServer服务，在node1执行命令
+mapred --daemon start historyserver
+# WEB UI：http://node1.itcast.cn:19888/
+# 查看进程两种方法
+ps -aux | grep mysql
+ps -ef | grep redis
+# 查看端口
+ lsof -i 用以显示符合条件的进程情况lsof -i:3306
+netstat -tunlp命令用于显示tcp，udp的端口和进程等相关情况
+#清空系统内存
+echo 3 > /proc/sys/vm/drop_caches
+
+
+# SQL查看函数使用desc function extended 函数
+
+# linux补全
+yum install bash-completion
+source /usr/share/bash-completion/bash_completion
+
+orc 和parquet都是列式存储
+
+Hadoop:
+50070：HDFS WEB UI旧版本端口新版本9870
+8020 ： 高可用的HDFS RPC端口
+9000 ： 非高可用的HDFS RPC端口
+8032 ： ResourceManager的RPC端口
+8088 ： Yarn 的WEB UI 接口
+8485 ： JournalNode 的RPC端口
+8019 ： ZKFC端口
+19888：jobhistory WEB UI端口
+
+Hbase:
+60010：Hbase的master的WEB UI端口 （旧的） 新的是16010
+60030：Hbase的regionServer的WEB UI 管理端口
+
+Hive:
+9083 : metastore服务默认监听端口
+10000：Hive 的JDBC端口
+
+Spark：
+7077 ： spark 的master与worker进行通讯的端口 standalone集群提交Application的端口
+8080 ： master的WEB UI端口 资源调度
+8081 ： worker的WEB UI 端口 资源调度
+4040 ： Driver的WEB UI 端口 任务调度监控
+10000:  ThriftServer默认端口
+18080：Spark History Server的WEB UI 端口
+
+Kafka：
+9092： Kafka集群节点之间通信的RPC端口
+
+Redis：
+6379： Redis服务端口

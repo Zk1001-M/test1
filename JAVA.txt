@@ -1,0 +1,86 @@
+1.IDEA  快捷键
+new Scanner(System.in).var
+// ctrl + shift + u  大小写转换
+// 快捷键 alt + insert 选择getter & setter
+// psvm 方法
+// main  方法
+// fori  for循环
+// itar  for遍历 ；只对最近的数组生效
+// itli 遍历单列集合
+// ctrl + shift + 上下箭头移动当前行代码；
+// ctrl + alt + L 代码格式化
+// soutv快速打印最近的代码
+// alt + 回车(内容辅助键)，光标放上后按
+// 快捷键 alt + insert 选择 equals & hashCode()
+// Ctrl+alt+shift +s 添加项目
+
+2.JAVA中的常量：整数常量、小数常量、字符常量、字符串常量、布尔常量、空常量
+	自定义常量（后话）
+
+3.JAVA基本数据类型：
+	四类八种基本数据类型
+	数据类型：byte、short、int(默认)、long
+	浮点类型：float、double（默认类型）
+	布尔类型：boolean  只有两个值 true和false
+	字符类型：char（单引号）
+string属于引用数据类型 （双引号代表字符串）
+	从小到大的顺序（byte short char） -> int -> long -> float -> double
+
+4.. 逻辑运算符
+// && 双与 短路与 相当于and  ：同真为真
+// || 双或 短路或 相当于or   ：一真为真
+// ! 取反  相当于not
+
+5.三元运算符
+        // 关系表达式的结果如果为true 则返回表达式1 否则返回表达式2
+       (a > b) ? a : b
+
+6.算数运算符 + - * / % ++ --
+        // 整数相除得整数，加上小数得小数
+        // 取余 %
+        // ++ 自增加1	
+        //-- 自减1
+        // 赋值运算符 += -= 具有强制转换功能
+
+7.标识符的命名规则
+	1.类，接口的命名规范：每个单词首字母大写（大驼峰命名）
+	2.变量，方法的命名规范：从第二个单词开始，每个单词的首字符都大写，其他字母全部小写（小驼峰命名）
+	3.长量（指的是：自定义常量）的命名规范：所有字母都大写，单词之前用_（下划线）隔开
+	4.包的命名规范：所有字母全部小写，多级包之间用.（点符号）隔开，一般是公司域名的反写
+
+8.case穿透：当某个case匹配成功后会执行里面的语句体，执行结束后如果没有遇到break，就会穿透下一个break（不在判断），直到遇到break或者整个Switch执行完毕才会停止；
+
+9.API
+// Arrays.toString(任意数组) 将数组中的内容以字符串的形式返回出来
+
+
+
+# 运算符
+        // 异或 ^
+        // 逻辑运算符 & | ^ 都可以参数数字运算操作
+        // 与运算 或运算 异或运算
+        // > >> < << 位运算符
+        // 这一类运算符 效率会比较高 直接针对于二进制进行运算
+        // 以 ^ 为例: 相同为 false 不同为true
+        // false ^ true = true
+        // false ^ false = false
+        // 二进制中 1 表示 true 0 表示 false
+
+
+
+# maven的JDK编译放在pom中，自带的<properties>暂时不用
+<build>
+        <plugins>
+            <!-- java编译插件 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.2</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
