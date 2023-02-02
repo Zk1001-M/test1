@@ -1,0 +1,539 @@
+﻿# -*- encoding:utf-8 -*-
+
+ 
+
+"""头部注释模块
+
+Script ENName : t_python_example
+
+Script CNName : python 示例脚本
+
+Author        : helianglong
+
+Date          : 2022-06-17
+
+Version       : V1.0
+
+Description   : python 脚本示例，请修改加工逻辑后使用。
+
+Cycle         :
+
+"""
+
+ 
+
+ 
+
+from pyhive import hive
+
+from bdsTookit import logger
+
+from bdsTookit.etlUtil import get_etl_env, is_first_run
+
+from bdsTookit.dbUtil import hive_query,hive_query_one,hive_query_many,hive_exec
+
+ 
+
+ 
+
+# 改造接口表名
+
+table_name = "T98_INDV_VOUCH_INFO"
+
+# 是否首次运行（铺底）（1：是，0：否）
+
+is_first_run = 0
+
+# 表类型（1：拉链表HS，2：流水表HT）
+
+table_type = 2
+
+ 
+
+# 定义 Hive 参数
+
+hive_conf = {"hive.exec.dynamic.partition":"true", # 设置分区参数
+
+"hive.exec.dynamic.partition.mode":"nonstrict",
+
+"hive.auto.convert.join":"false", # 设置 MapJoin 参数,避免 OOM
+
+"hive.tez.container.size":"35840",
+
+#"hive.tez.java.opts":"-Xmx5734.4m",
+
+"hive.exec.reducers.max":"2500"
+
+}
+
+ 
+
+ 
+
+# 数据库名称设置
+
+db_bds_his = get_etl_env("DB_BDS_HIS") # 共享库
+
+db_bdata = get_etl_env("DB_BDATA") # 自有库
+
+db_btemp = get_etl_env("DB_BTEMP") # 临时库
+
+# 系统变量
+
+txdate1 = get_etl_env("TXDATE1")
+
+tx4ym1 = get_etl_env("TX4YM1")
+
+tx4y = get_etl_env("TX4Y")
+
+# 表引用
+
+# 共享库源表
+
+bds_his_table = f"{db_bds_his}.{table_name}"
+
+# 业务中间表
+
+mid_table1 = f"{db_btemp}.MID_SYN_HS_{table_name}_1"
+
+mid_table2 = f"{db_btemp}.MID_SYN_HS_{table_name}_2"
+
+# 加工结果表
+
+t_table = ""
+
+ 
+
+def hive_exect(sql, *param):
+
+    """
+
+    有返回值的sql语句
+
+    """
+
+    conn = None
+
+    cursor = None
+
+    logger.info(f"SQL:{sql}, Param:{param}")
+
+    try:
+
+        hive_configuration = hive_conf # 使用 hive 配置参数
+
+        conn = hive.Connection(hive_configuration) # 创建带 hive 配置参数的连接
+
+        #conn = hive.Connection() # 创建默认 hive 配置参数的连接
+
+        cursor = conn.cursor()
+
+        cursor.execute(sql, *param)
+
+    except Exception as e:
+
+        logger.error(f"执行 hivesql 异常:{sql},异常信息:SUBSTR({e}, 1, 300)")
+
+        if cursor:
+
+            cursor.close()
+
+        if conn:
+
+            conn.close()
+
+        exit(1) # 报错非 0 退出，ETL 作业报错
+
+    else:
+
+        cursor.close()
+
+        conn.close()
+
+ 
+
+def selectSql(sql, *param):
+
+    """
+
+    有返回值的sql语句
+
+    """
+
+    conn = None
+
+    cursor = None
+
+    logger.info(f"SQL:{sql}, Param:{param}")
+
+    try:
+
+        hive_configuration = hive_conf # 使用 hive 配置参数
+
+        conn = hive.Connection(hive_configuration) # 创建带 hive 配置参数的连接
+
+        #conn = hive.Connection() # 创建默认 hive 配置参数的连接
+
+        cursor = conn.cursor()
+
+        cursor.execute(sql, *param)
+
+        result = cursor.fetchall()
+
+    except Exception as e:
+
+        logger.error(f"执行 hivesql 异常:{sql},异常信息:{e}")
+
+        if cursor:
+
+            cursor.close()
+
+        if conn:
+
+            conn.close()
+
+        exit(1) # 报错非 0 退出，ETL 作业报错
+
+    else:
+
+        cursor.close()
+
+        conn.close()
+
+    return result
+
+ 
+
+ 
+
+def getFields(table):
+
+    """
+
+    获取字段信息
+
+    """
+
+    sql = f"""DESC {table}"""
+
+    result = selectSql(sql)
+
+    fields = []
+
+    for res in result:
+
+        if res[0] == '' or '#' in res[0]:
+
+            break
+
+        else:
+
+            field = {"name": res[0], "type": res[1], "comment": res[2]}
+
+            fields.append(field)
+
+    return fields
+
+ 
+
+ 
+
+if __name__ == '__main__':
+
+ 
+
+    # 获取字段信息
+
+    fields = getFields(bds_his_table)
+
+    logger.info(f"获取字段信息成功")
+
+ 
+
+    # 拉链表
+
+    if table_type == 1:
+
+        t_table = f"{db_bdata}.T_SYN_HS_{table_name}"
+
+        fields_text = ""
+
+        st = 0
+
+        for field in fields:
+
+            if st == 0:
+
+                fields_text = fields_text + "{}".format(field["name"])
+
+                st = 1
+
+            else:
+
+                fields_text = fields_text + ", {}".format(field["name"])
+
+ 
+
+        # 第一次运行，铺底
+
+        if is_first_run == 1:
+
+ 
+
+            # 创建结果表
+
+            create_sql = f"""CREATE TABLE IF NOT EXISTS {t_table} LIKE {bds_his_table}"""
+
+            hive_exec(create_sql)
+
+            logger.info(f"执行创建结果表 SQL：{create_sql}成功")
+
+ 
+
+            # 插入铺底数据
+
+            insert_sql = f"""INSERT OVERWRITE TABLE {t_table} SELECT {fields_text} FROM {bds_his_table}"""
+
+            hive_exec(insert_sql)
+
+            logger.info(f"执行铺底 SQL：{insert_sql}成功")
+
+ 
+
+        elif is_first_run == 0:
+
+            # 创建中间表1
+
+            create_sql = f"""CREATE TABLE IF NOT EXISTS {mid_table1} LIKE {bds_his_table}"""
+
+            hive_exec(create_sql)
+
+            logger.info(f"执行创建中间表 SQL：{create_sql}成功")
+
+            # 创建中间表2
+
+            create_sql = f"""CREATE TABLE IF NOT EXISTS {mid_table2} LIKE {bds_his_table}"""
+
+            hive_exec(create_sql)
+
+            logger.info(f"执行创建中间表 SQL：{create_sql}成功")
+
+            
+
+            # 从共享库源表抽取当前有效数据和当天闭链数据插入中间表
+
+            start = None
+
+            end = None
+
+            # 卡时间字段可能不一样
+
+            if 'bds_start_dt' in fields_text:
+
+                start = 'bds_start_dt'
+
+            else:
+
+                start = 'start_dt'
+
+            if 'bds_end_dt' in fields_text:
+
+                end = 'bds_end_dt'
+
+            else:
+
+                end = 'end_dt'
+
+            # 抽取当天闭链数据以及当前有效数据
+
+            insert_sql = f"""INSERT INTO {mid_table1} ({fields_text}) SELECT {fields_text} FROM {bds_his_table} WHERE {start} <= '{txdate1}' AND {end} >= '{txdate1}'"""
+
+            hive_exec(insert_sql)
+
+            logger.info(f"从共享库源表抽取数据插入中间表{mid_table1}成功")
+
+            logger.info(f"从共享库源表抽取数据插入中间表 SQL:{insert_sql}")
+
+            # 抽取结果表需要保留的数据
+
+            insert_sql = f"""INSERT INTO {mid_table2} ({fields_text}) SELECT {fields_text} FROM {bds_his_table} WHERE {end} < '{txdate1}'"""
+
+            hive_exec(insert_sql)
+
+            logger.info(f"从结果表表抽取数据插入中间表{mid_table2}成功")
+
+            logger.info(f"从结果表表抽取数据插入中间表 SQL:{insert_sql}")
+
+            # 更新结果表
+
+            update_sql = f"""INSERT OVERWRITE TABLE {t_table} SELECT {fields_text} FROM {mid_table2} UNION ALL SELECT {fields_text} FROM {mid_table1}"""
+
+            hive_exec(update_sql)
+
+            logger.info(f"更新结果表{t_table}成功")
+
+            logger.info(f"更新结果表 SQL:{update_sql}")
+
+            
+
+            # 业务中间表清理
+
+            sql = f"""TRUNCATE TABLE {mid_table1}"""
+
+            logger.info(f"业务中间表清理:{sql}")
+
+            hive_exec(sql)
+
+            logger.info(f"中间表{mid_table1}清理成功")
+
+            sql = f"""TRUNCATE TABLE {mid_table2}"""
+
+            logger.info(f"业务中间表清理:{sql}")
+
+            hive_exec(sql)
+
+            logger.info(f"中间表{mid_table2}清理成功")
+
+ 
+
+    # 流水表
+
+    elif table_type == 2:
+
+        t_table = f"{db_bdata}.T_SYN_HT_{table_name}"
+
+        create_text = ""
+
+        fields_text = ""
+
+        st = 0
+
+        for field in fields:
+
+            if field["name"] == 'bds_load_month':
+
+                continue
+
+            if st == 0:
+
+                create_text = create_text + "{}  {}  COMMENT '{}'".format(field["name"], field["type"], field["comment"])
+
+                fields_text = fields_text + "{}".format(field["name"])
+
+                st = 1
+
+            else:
+
+                create_text = create_text + ", {}  {}  COMMENT '{}'".format(field["name"], field["type"], field["comment"])
+
+                fields_text = fields_text + ", {}".format(field["name"])
+
+ 
+
+        # 第一次运行，铺底
+
+        if is_first_run == 1:
+
+            #创建结果表
+
+            create_sql = f"""CREATE TABLE IF NOT EXISTS {t_table}
+
+                             ({create_text})
+
+                             PARTITIONED BY (bds_load_month  STRING)
+
+                             ROW FORMAT DELIMITED
+
+                             NULL DEFINED AS ''
+
+                             STORED AS ORC
+
+                             TBLPROPERTIES ('transactional'='false')"""
+
+            hive_exec(create_sql)
+
+            logger.info(f"执行创建结果表 SQL：{create_sql}成功")
+
+ 
+
+            # 可能的回退
+
+            rollback_sql = f"""ALTER TABLE {t_table} DROP IF EXISTS PARTITION(bds_load_month >= '{tx4ym1}')"""
+
+            hive_exect(rollback_sql)
+
+            logger.info(f"执行回退 SQL：{rollback_sql}成功")
+
+            
+
+            # 插入铺底数据
+
+            if tx4y < '2019' and tx4ym1 != '2018-12':
+
+                pass
+
+            elif tx4y < '2019' and tx4ym1 == '2018-12':
+
+                insert_sql = f"""INSERT INTO {t_table}  PARTITION(bds_load_month = '{tx4ym1}') ({fields_text}) SELECT {fields_text} FROM {bds_his_table} WHERE SUBSTR(bds_load_date, 1, 4) <= '{tx4y}'"""
+
+                hive_exect(insert_sql)
+
+                logger.info(f"执行铺底 SQL：{insert_sql}成功")
+
+            
+
+            elif tx4y >= '2019':
+
+                insert_sql = f"""INSERT INTO {t_table}  PARTITION(bds_load_month = '{tx4ym1}') ({fields_text}) SELECT {fields_text} FROM {bds_his_table} WHERE SUBSTR(bds_load_date, 1, 7) = '{tx4ym1}'"""
+
+                hive_exect(insert_sql)
+
+                logger.info(f"执行铺底 SQL：{insert_sql}成功")
+
+ 
+
+ 
+
+        elif is_first_run == 0:
+
+        # 不是第一次运行
+
+ 
+
+            #判断回退
+
+            count_sql = f"""SELECT COUNT(1) FROM {t_table} WHERE bds_load_month = '{tx4ym1}' AND bds_load_date >= '{txdate1}'"""
+
+            count_num = selectSql(count_sql)
+
+            if count_num[0][0] > 0:
+
+                rollback_sql = f"""INSERT OVERWRITE TABLE {t_table} PARTITION(bds_load_month = '{tx4ym1}') SELECT {fields_text} FROM {t_table} WHERE bds_load_month = '{tx4ym1}' AND bds_load_date < '{txdate1}'"""
+
+                hive_exect(rollback_sql)
+
+                logger.info(f"执行回退 SQL：{rollback_sql}成功")
+
+ 
+
+            insert_sql = f"""INSERT INTO {t_table}  PARTITION(bds_load_month = '{tx4ym1}') ({fields_text}) SELECT {fields_text} FROM {bds_his_table} WHERE bds_load_date = '{txdate1}'"""
+
+            hive_exect(insert_sql)
+
+            logger.info(f"执行插入数据 SQL：{insert_sql}成功")
+
+ 
+
+ 
+
+    # 收尾模块
+
+    # 加工结果表统计信息收集
+
+    sql = f"""ANALYZE TABLE {t_table} COMPUTE STATISTICS"""
+
+    logger.info(f"加工结果表统计信息收集:{sql}")
+
+    hive_exec(sql)
+
+    logger.info("统计信息收集成功")

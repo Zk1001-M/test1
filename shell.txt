@@ -1,0 +1,139 @@
+#!/bin/bash
+
+today=`date +%Y%m%d`
+#today=`date -d '-1 days' +%Y%m%d`  #昨天
+
+##生产环境
+local_path=/home/oracle/yuer/SAZH
+remote_path=/app/bds/upload/data/${today}
+remote_ip=21.128.56.179
+remote_user=oracle
+remote_passwd=oracle
+
+send_file()
+{
+        file_name=$1  #例如YASC20221027.txt
+        obj_name=`echo ${file_name} | awk -F '2' '{print $1}'`  #前几位字母
+
+        if [ ${obj_name}x = "YASC"x  ]; then
+                now_name=3100_T_SH_SELF_UPLD_GAMB_RACKETR_O_${today}_A_0001_0001.txt
+                table_name=T_SH_SELF_UPLD_GAMB_RACKETR_O
+        fi
+        if [ ${obj_name}x = "SZP"x  ]; then
+                now_name=3100_T_SH_SELF_UPLD_GAMB_RACKETR_T_${today}_A_0001_0001.txt
+                table_name=T_SH_SELF_UPLD_GAMB_RACKETR_T
+        fi
+        if [ ${obj_name}x = "GWSJ"x  ]; then
+                now_name=3100_T_SH_PHONE_UPLD_GAMB_RACKETR_${today}_A_0001_0001.txt
+                table_name=T_SH_PHONE_UPLD_GAMB_RACKETR
+        fi
+        if [ ${obj_name}x = "ZHDC"x  ]; then
+                now_name=3100_T_SH_REVE_CHE_ACCOUNT_${today}_A_0001_0001.txt
+                table_name=T_SH_REVE_CHE_ACCOUNT
+        fi
+
+
+        cd ${local_path}  #本地txt都在这个文件夹
+		
+		geshi=`file $file_name | awk -F ' ' '{print $2}'`  
+		if [ ${geshi} != "UTF-8"  ]; then
+        #将文件编码格式转换为utf-8,后缀加new
+			iconv -c  -f gbk -t utf-8 $file_name>$now_name  #生成新文件
+		else
+		mv $file_name $now_name
+		fi
+		
+
+
+        #文件编码格式转换为unix
+        #sed -i 's/.$//g' $now_name
+        sed -i 's/^M$//g' $now_name
+        sed -i 's/\x0D$//g' $now_name
+
+        #查看文件行数
+        hangshu=`cat $now_name | wc -l`
+
+        #压缩文件
+        gzip  $now_name  #生成新文件
+
+        daxiao=`ls -ltr ${now_name}.gz | awk '{print $5}'`  #文件大小
+        name1=`echo ${now_name} | awk -F '.' '{print $1}'`  #去掉.后后缀的文件名
+        name=`echo ${now_name}.gz | awk '{print $1}'`   #后缀是.txt.gz的文件名
+
+        #生成控制文件
+        echo "$name $daxiao $hangshu ${today}">${name1}.verf
+
+        #传输file_name和file_namew
+expect << EOF
+        set timeout 60
+        spawn sftp ${remote_user}@${remote_ip}:${remote_path} 
+        expect "*password:"          {send "${remote_passwd}\r"}
+        expect "sftp>*"                  {send "mkdir ${table_name}\r"}
+        expect "sftp>*"                  {send "cd ${table_name}\r"}
+        expect "sftp>*"                  {send "put ${name}\r"} 
+        expect "sftp>*"                  {send "put ${name1}.verf\r"}  
+        expect "sftp>"               {send "exit\r"}
+expect eof
+EOF
+        #发两个文件就复制这行 expect "sftp>*"                    {send "put ${file_name}\r"}  到这行下面。
+        #删除这两个生成的文件
+        rm -f ${name}
+        rm -f ${name1}.verf
+}
+
+
+YASC_file=YASC${today}.txt
+SZP_file=SZP${today}.txt
+GWSJ_file=GWSJ${today}.txt
+ZHDC_file=ZHDC${today}.txt
+
+date
+echo "send file start" 
+cd ${local_path}
+# -f 参数判断 $file 是否存在
+if [ -f "${local_path}/$YASC_file" ]; then
+  echo send_file ${YASC_file}
+  send_file ${YASC_file}
+  mv ${local_path}/${YASC_file} ${local_path}/bak/${YASC_file}
+  echo mv ${local_path}/${YASC_file} ${local_path}/bak/${YASC_file}
+else
+  touch ${local_path}/${YASC_file}
+  send_file ${YASC_file}
+  mv ${local_path}/${YASC_file}  ${local_path}/nought_file_bak/${YASC_file}
+  echo mv ${local_path}/${YASC_file}  ${local_path}/nought_file_bak/${YASC_file}
+fi
+
+if [ -f "${local_path}/$SZP_file" ]; then
+  echo send_file ${SZP_file}
+  send_file ${SZP_file}
+  mv ${local_path}/${SZP_file} ${local_path}/bak/${SZP_file}
+  echo mv ${local_path}/${SZP_file} ${local_path}/bak/${SZP_file}
+else
+  touch ${local_path}/${SZP_file}
+  send_file ${SZP_file}
+  mv ${local_path}/${SZP_file} ${local_path}/nought_file_bak/${SZP_file}
+  echo mv ${local_path}/${SZP_file} ${local_path}/nought_file_bak/${SZP_file}
+fi
+
+if [ -f "${local_path}/$GWSJ_file" ]; then
+  echo send_file ${GWSJ_file}
+  send_file ${GWSJ_file}
+  mv ${GWSJ_file} bak/${GWSJ_file}
+  echo mv ${local_path}/${GWSJ_file} ${local_path}/bak/${GWSJ_file}
+else
+  touch ${local_path}/${GWSJ_file}
+  send_file ${GWSJ_file}
+  mv ${local_path}/${GWSJ_file} ${local_path}/nought_file_bak/${GWSJ_file}
+  echo mv ${local_path}/${GWSJ_file} ${local_path}/nought_file_bak/${GWSJ_file}
+fi
+
+if [ -f "${local_path}/$ZHDC_file" ]; then
+  echo send_file ${ZHDC_file}
+  send_file ${ZHDC_file}
+  mv ${local_path}/${ZHDC_file} ${local_path}/bak/${ZHDC_file}
+else
+  touch ${local_path}/${ZHDC_file}
+  send_file ${ZHDC_file}
+  mv ${local_path}/${ZHDC_file} ${local_path}/nought_file_bak/${ZHDC_file}
+  echo mv ${local_path}/${ZHDC_file} ${local_path}/nought_file_bak/${ZHDC_file}
+fi
